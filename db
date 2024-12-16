@@ -1,0 +1,147 @@
+#! /usr/bin/bash
+shopt -s extglob 
+########################################################
+if [ -d ~/.local/bin/iti ]; then
+    cd ~/.local/bin/iti
+else
+    mkdir -p ~/.local/bin/iti
+    cd ~/.local/bin/iti
+fi
+########################################################
+select option in CreateDB ListDB ConnectDB DropDB Exit
+do
+    case $option in 
+      "CreateDB")
+            read -p "Please Enter Database name: " dbName
+            if [ -d "$dbName" ]; then
+                echo "Database '$dbName' already exists."
+            else
+                mkdir "$dbName"
+                echo "Database '$dbName' created successfully."
+            fi
+           ;;
+########################################################
+    "ListDB")
+        echo "Available Databases:"
+        for db in */; do
+           echo "${db%%/}"
+        done
+        ;;
+########################################################
+    "ConnectDB")
+    echo "Which Databases You Want To Connect?"
+ 
+    i=1
+
+    for db in */; do
+        echo "$i) ${db%%/}"
+        i=$((i + 1))
+    done
+    
+    read -p "Enter the number of the database to connect to: " dbChoice
+
+    i=1
+    for db in */; do
+        if [ "$dbChoice" -eq "$i" ]; then
+            dbName="${db%%/}"
+            break
+        fi
+        i=$((i + 1))
+    done
+    
+    if [ -n "$dbName" ]; then
+
+        echo "Connected to '$dbName' successfully."
+
+        while true; do
+            echo "Select an option:"
+            echo "1) Create Table"
+            echo "2) List Tables"
+            echo "3) Drop Table"
+            echo "4) Select from Table"
+            echo "5) Insert into Table"
+            echo "6) Delete from Table"
+            echo "7) Disconnect"
+            read -p "Enter your choice: " choice
+
+            case $choice in
+                1)
+                    echo "Create Table option selected."
+                    ;;
+                2)
+                    echo "List Tables option selected."
+                    ;;
+                3)
+                    echo "Drop Table option selected."
+                    ;;
+                4)
+                    echo "Select from Table option selected."
+                    ;;
+                5)
+                    echo "Insert into Table option selected."
+                    ;;
+                6)
+                    echo "Delete from Table option selected."
+                    ;;
+                7)
+                    echo "Disconnecting from database '$dbName'."
+                    break
+                    ;;
+                *)
+                    echo "Invalid choice. Please try again."
+                    ;;
+            esac
+        done
+    else
+        echo "Invalid selection. No database found."
+    fi
+    ;;
+
+########################################################
+"DropDB")
+    echo "Databases Available for Deletion:"
+    i=1
+    for db in */; do
+        echo "$i) ${db%%/}"
+        i=$((i + 1))
+    done
+    
+    read -p "Enter the number of the database to delete: " dbChoice
+    i=1
+    for db in */; do
+        if [ "$dbChoice" -eq "$i" ]; then
+            dbName="${db%%/}"
+            break
+        fi
+        i=$((i + 1))
+    done
+    if [ -n "$dbName" ]; then
+
+        echo "Are you sure you want to delete '$dbName'?"
+        read -p "Enter your choice 1)Yes 2)No " choice
+        if [ "$choice" -eq 1 ]; then
+            rm -r "$dbName"
+            echo "Database '$dbName' deleted successfully."
+        elif [ "$choice" -eq 2 ]; then
+            echo "Deletion cancelled."
+        else
+            echo "Invalid input. Deletion cancelled."
+        fi
+    else
+        echo "Invalid selection. No database found."
+    fi
+    ;;
+########################################################
+    "Exit")
+        echo "Goodbye!"
+        break
+        ;;
+    *)
+        echo "Invalid option. Please select a valid number."
+        ;;
+    esac
+done
+########################################################
+
+
+
