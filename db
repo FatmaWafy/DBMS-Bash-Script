@@ -42,9 +42,8 @@ do
         do
 	     if [ -d "$db" ]
 	     then
-	        echo "$(basename "$db")"
+	      echo "$(basename "$db")"
 	     fi
-
         done
         ;;
 ########################################################
@@ -77,14 +76,19 @@ do
            ;;
 ########################################################
     "ConnectDB")
-    echo "Which Databases You Want To Connect?"
- 
-    i=1
+	current_dir=$(pwd)
 
-    for db in */; do
-        echo "$i) ${db%%/}"
-        i=$((i + 1))
-    done
+    	echo "Which Databases You Want To Connect?"
+ 
+	i=1
+	for db in $current_dir/*/
+	do
+	    if [ -d "$db" ]
+	    then
+		echo "$i) $(basename "$db")"
+		i=$((i + 1))
+	    fi
+	done
     
     read -p "Enter the number of the database to connect to: " dbChoice
 
@@ -157,8 +161,16 @@ do
         echo "$i) ${db%%/}"
         i=$((i + 1))
     done
+   
+    while true; do
+        read -p "Enter the number of the database to delete: " dbChoice
+        if [[ "$dbChoice" =~ ^[0-9]+$ ]] && [ "$dbChoice" -ge 1 ] && [ "$dbChoice" -le $((i - 1)) ]; then
+            break
+        else
+            echo "Invalid choice, please enter a valid number."
+        fi
+    done
     
-    read -p "Enter the number of the database to delete: " dbChoice
     i=1
     for db in */; do
         if [ "$dbChoice" -eq "$i" ]; then

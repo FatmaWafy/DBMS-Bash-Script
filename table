@@ -244,10 +244,12 @@ do
 		    echo "Invalid data, please enter data contain (0-9)."
 		    continue
 		fi
-		if [[ "$colName" == "id" ]]
+		
+		line=$(grep "^$colName:" .$tbName"_metadata")
+    		if [[ "$line" == *"unique"* ]]
 		then
-		   if grep -q "^$data:" "$tbName"
-		   then
+		  if grep -q "^$data:" "$tbName"
+        	   then
 		      echo "The ID $data already exists. Please enter a unique value."
 		      continue
 		   fi
