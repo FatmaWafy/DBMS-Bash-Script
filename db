@@ -15,8 +15,6 @@ select option in CreateDB ListDB RenameDB ConnectDB DropDB Exit
 do
     case $option in 
     "CreateDB")
-            read -p "Please Enter Database name: " dbName
-      "CreateDB")
 	   while true; 
 	   do
 		read -p "Please Enter Database name: " dbName
@@ -34,7 +32,7 @@ do
             else
                 mkdir "$dbName"
                 echo "Database '$dbName' created successfully."
-            fi
+            fi  
            ;;
 ########################################################
     "ListDB")
