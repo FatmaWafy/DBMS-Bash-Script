@@ -274,3 +274,268 @@ done
 echo "${row[*]}" | sed 's/ /:/g' >>"$tbName"
 echo "row inserted successfully in '$tbName'."
 }
+############################################################
+function select_from_table() {
+    cd "$current_dir/$dbName"
+
+    echo "Available tables:"
+    tables=()
+    i=1
+    for tb in *; do
+        if [ -f "$tb" ] && [ ! -e "$tb"_metadata ]; then
+            tables+=("$tb")
+            echo "$i) $tb"
+            i=$((i + 1))
+        fi
+    done
+
+
+    read -p "Enter the number of the table to select from: " tbNumber
+    selected_table=""
+    i=1
+    for tb in "${tables[@]}"; do
+        if [ "$tbNumber" -eq "$i" ]; then
+            selected_table="$tb"
+            break
+        fi
+        i=$((i + 1))
+    done
+
+
+    if [ -z "$selected_table" ]; then
+        echo "Invalid table selection."
+        return
+    fi
+
+    echo "Table '$selected_table' selected."
+    
+    while true; do
+        echo "Please choose display type:"
+        echo "1) Select all"
+        echo "2) Select by column"
+        echo "3) Select by ID"
+        echo "4) Exit"
+        read -p "Enter your choice (1:4): " display_choice
+
+        case $display_choice in
+            1) # Display all data
+                echo "All Data:"
+                echo "$(awk -F: '{print $1}' ."$selected_table"_metadata | paste -sd ":" -)"
+                column -t -s " " "$selected_table"
+                ;;
+            2) # Display data by column
+                read -p "Enter the column name: " colName
+
+                # Check if column exists
+                column_number=$(awk -F: -v name="$colName" '$1 == name {print NR}' ."$selected_table"_metadata)
+                if [ -n "$column_number" ]; then
+                    echo "Data for column '$colName':"
+                    # Display data for the specified column
+                    awk -F: -v col="$column_number" '{print $col}' "$selected_table"
+                else
+                    echo "Invalid column name. Please enter a valid column name."
+                fi
+                ;;
+            3) # Display data by ID
+                read -p "Enter the ID to search for: " search_id
+                if [[ "$search_id" =~ ^[0-9]+$ ]]; then
+                    
+                    row=$(awk -F: -v id="$search_id" '$1 == id {print $0}' "$selected_table")
+                    if [ -n "$row" ]; then
+                        echo "Data for ID '$search_id':"
+                        echo "$row"
+                    else
+                        echo "No data found for ID '$search_id'."
+                    fi
+                else
+                    echo "Invalid ID. Please enter a valid number."
+                fi
+                ;;
+            4) # Exit to main menu
+                break
+                ;;
+            *) # Invalid choice
+                echo "Invalid choice. Please try again."
+                ;;
+        esac
+    done
+}
+
+####################################################################
+function delete_from_table() {
+    cd "$current_dir/$dbName"
+
+    echo "Available tables:"
+    tables=()
+    i=1
+    for tb in *; do
+        if [ -f "$tb" ] && [ ! -e "$tb"_metadata ]; then
+            tables+=("$tb")
+            echo "$i) $tb"
+            i=$((i + 1))
+        fi
+    done
+
+    read -p "Enter the number of the table to delete from: " tbNumber
+    selected_table=""
+    i=1
+    for tb in "${tables[@]}"; do
+        if [ "$tbNumber" -eq "$i" ]; then
+            selected_table="$tb"
+            break
+        fi
+        i=$((i + 1))
+    done
+
+    if [ -z "$selected_table" ]; then
+        echo "Invalid table selection."
+        return
+    fi
+
+    echo "Table '$selected_table' selected."
+
+    while true; do
+        echo "Delete options:"
+        echo "1) Delete all data"
+        echo "2) Delete by column value"
+        echo "3) Delete by ID"
+        echo "4) Back to main menu"
+        read -p "Enter your choice (1:4): " delete_choice
+
+        case $delete_choice in
+            1) # Delete all data from the table
+                > "$selected_table"
+                echo "All data deleted from table '$selected_table'."
+                ;;
+            2) # Delete by column value
+                read -p "Enter the column name: " column_name
+                read -p "Enter the value to delete: " column_value
+
+                
+                col_index=$(awk -F: -v col="$column_name" '$1 == col {print NR}' "${selected_table}_metadata")
+                if [ -z "$col_index" ]; then
+                    echo "Invalid column name: $column_name"
+                    continue
+                fi
+
+                
+                awk -F: -v col="$col_index" -v val="$column_value" '$col != val' "$selected_table" > temp && mv temp "$selected_table"
+                echo "Rows with value '$column_value' in column '$column_name' deleted."
+                ;;
+            3) # Delete by ID
+                read -p "Enter the ID to delete: " delete_id
+                if [[ "$delete_id" =~ ^[0-9]+$ ]]; then
+                    
+                    id_exists=$(awk -F: -v id="$delete_id" '$1 == id {print $0}' "$selected_table")
+                    if [ -z "$id_exists" ]; then
+                        echo "ID '$delete_id' not found in the table."
+                    else
+                        
+                        awk -F: -v id="$delete_id" '$1 != id' "$selected_table" > temp && mv temp "$selected_table"
+                        echo "Rows with ID '$delete_id' deleted."
+                    fi
+                else
+                    echo "Invalid ID. Please enter a valid number."
+                fi
+                ;;
+            4) # Go back to main menu
+                break
+                ;;
+            *) # Invalid option
+                echo "Invalid choice. Please try again."
+                ;;
+        esac
+    done
+}
+
+#######################################################################
+function update_table() {
+    cd "$current_dir/$dbName"
+
+  
+    echo "Available tables:"
+    tables=()
+    i=1
+    for tb in *; do
+        if [ -f "$tb" ] && [ ! -e "$tb"_metadata ]; then
+            tables+=("$tb")
+            echo "$i) $tb"
+            i=$((i + 1))
+        fi
+    done
+
+    
+    read -p "Enter the number of the table to update: " tbNumber
+    selected_table=""
+    i=1
+    for tb in "${tables[@]}"; do
+        if [ "$tbNumber" -eq "$i" ]; then
+            selected_table="$tb"
+            break
+        fi
+        i=$((i + 1))
+    done
+
+   
+    if [ -z "$selected_table" ]; then
+        echo "Invalid table selection."
+        return
+    fi
+
+    echo "Table '$selected_table' selected."
+
+   
+    while true; do
+        echo "Please choose Update type:"
+        echo "1) Update by column"
+        echo "2) Update by ID"
+        echo "3) Exit"
+        read -p "Enter your choice (1:3): " update_choice
+
+        case $update_choice in
+            1)  # Update by column
+                read -p "Enter the column name: " column_name
+                read -p "Enter the value to update: " column_value
+                read -p "Enter the new value: " new_value
+
+                
+                col_index=$(awk -F: -v col="$column_name" '$1 == col {print NR}' "${selected_table}_metadata")
+                if [ -z "$col_index" ]; then
+                    echo "Invalid column name: $column_name"
+                    continue
+                fi
+
+                
+                awk -F: -v col="$col_index" -v val="$column_value" -v new_val="$new_value" \
+                    '{ if ($col == val) $col = new_val; print $0 }' "$selected_table" > temp && mv temp "$selected_table"
+                echo "Rows with value '$column_value' in column '$column_name' updated to '$new_value'."
+                ;;
+
+            2)  # Update by ID
+                read -p "Enter the ID to update: " search_id
+                read -p "Enter the new value: " new_value
+
+               
+                awk -F: -v id="$search_id" '$1 == id {found=1} END {if (!found) exit 1}' "$selected_table"
+                if [ $? -ne 0 ]; then
+                    echo "ID '$search_id' not found in the table."
+                    continue
+                fi
+
+                
+                awk -F: -v id="$search_id" -v new_val="$new_value" \
+                    '{ if ($1 == id) $2 = new_val; print $0 }' "$selected_table" > temp && mv temp "$selected_table"
+                echo "Row with ID '$search_id' updated to new value '$new_value'."
+                ;;
+
+            3)  # Exit
+                break
+                ;;
+
+            *)  # Invalid option
+                echo "Invalid option. Please try again."
+                ;;
+        esac
+    done
+}
+
