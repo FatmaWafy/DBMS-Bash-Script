@@ -128,7 +128,7 @@ do
                     echo "select from Table option selected."
                     ;;
                 5)
-                    echo "insert into Table option selected."
+                    insert_into_table
                     ;;
                 6)
                     echo "Update from Table option selected."
@@ -195,7 +195,7 @@ do
         break
         ;;
     *)
-        echo "Invalid option. Please select a valid number."
+        echo "Invalid option, Please select a valid number(1-6)."
         ;;
     esac
 done
