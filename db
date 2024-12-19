@@ -14,6 +14,8 @@ fi
 select option in CreateDB ListDB RenameDB ConnectDB DropDB Exit
 do
     case $option in 
+    "CreateDB")
+            read -p "Please Enter Database name: " dbName
       "CreateDB")
 	   while true; 
 	   do
