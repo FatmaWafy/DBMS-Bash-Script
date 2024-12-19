@@ -125,16 +125,23 @@ echo "Available tables:"
         fi
     done
 
-i=1
-tables=$(ls -A |  grep -v '^\.')
-for table in $tables 
-do
-	echo "$i) $table"  
-	i=$((i + 1))
-done
 
-read -p "Enter Please number table: " tbNumber
-tbName=""
+while true; 
+do
+	read -p "Enter Please number table: " tbNumber
+	if ! [[ "$tbNumber" =~ ^[0-9]+$ ]]
+	then
+        	echo "Please enter a valid number."
+        continue
+    	fi
+	if [ "$tbNumber" -ge 1 ] && [ "$tbNumber" -le ${#tables[@]} ]
+	then
+		tbName="${tables[$((tbNumber - 1))]}"
+		break
+	    else
+		echo "Invalid number, Please choose a valid table number."
+	 fi
+ done
 i=1
 for table in $tables 
 do
@@ -166,4 +173,104 @@ fi
 }
 
 ########################################################
+function insert_into_table(){
+cd "$current_dir/$dbName" 
 
+echo "Tables that exist in '$dbName':"
+    tables=()
+    i=1
+    for tb in *; do
+        if [[ -f "$tb" && ! "$tb" == .* ]]; then
+            tables+=("$tb")
+            echo "$i) $tb"
+            i=$((i + 1))
+        fi
+    done
+
+if [[ ${#tables[@]} -eq 0 ]]; then
+        echo "No tables to insert data."
+        return
+    fi
+    
+while true; 
+do
+	read -p "Enter Please number table: " tbNumber
+	if ! [[ "$tbNumber" =~ ^[0-9]+$ ]]
+	then
+        	echo "Please enter a valid number."
+        continue
+    	fi
+	if [ "$tbNumber" -ge 1 ] && [ "$tbNumber" -le ${#tables[@]} ]; then
+		tbName="${tables[$((tbNumber - 1))]}"
+		break
+	    else
+		echo "Invalid number. Please choose a valid table number."
+	 fi
+ done
+
+if [[ ! -f .$tbName"_metadata" ]]
+then
+	echo "Metadata file for table '$tbName' is missing."
+	break
+fi
+
+echo "Inserting into $tbName"
+echo "Column Names and Data Types:"
+mapfile -t metadata < ".$tbName"_metadata
+
+columns=()
+types=()
+   for line in "${metadata[@]}"
+	do
+	colName=$(echo "$line" | cut -d: -f1)
+	colType=$(echo "$line" | cut -d: -f2)
+	columns+=("$colName")
+	types+=("$colType")
+	echo "$colName ($colType)"
+	done
+
+row=()
+for index in "${!columns[@]}"
+do
+	colName=${columns[$index]}
+	colType=${types[$index]}
+	while true; 
+	do
+	    read -p "Enter data for $colName ($colType): " data
+	    case $colType in
+	    int)
+		if ! [[ "$data" =~ ^[0-9]+$ ]]
+		then 
+		    echo "Invalid data, please enter data contain (0-9)."
+		    continue
+		fi
+		if [[ "$colName" == "id" ]]
+		then
+		   if grep -q "^$data:" "$tbName"
+		   then
+		      echo "The ID $data already exists. Please enter a unique value."
+		      continue
+		   fi
+	    	fi
+		;;
+	    str) 
+		if [[ "$data" == "" ]] || [[ ! "$data" =~ ^[a-zA-Z0-9@.""]+$ ]] 
+		then
+		    echo "string cannot be empty and must contain letters or number , try again."
+		    continue
+		fi
+		;;
+	    *)
+		echo "unknown data type: $colType"
+		continue
+		;;
+	    esac
+
+	    row+=("$data")
+	    break
+	done
+done
+
+echo "${row[*]}" | sed 's/ /:/g' >>"$tbName"
+echo "row inserted successfully in '$tbName'."
+}
