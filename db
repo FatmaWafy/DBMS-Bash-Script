@@ -14,7 +14,7 @@ fi
 select option in CreateDB ListDB RenameDB ConnectDB DropDB Exit
 do
     case $option in 
-      "CreateDB")
+    "CreateDB")
 	   while true; 
 	   do
 		read -p "Please Enter Database name: " dbName
@@ -32,7 +32,7 @@ do
             else
                 mkdir "$dbName"
                 echo "Database '$dbName' created successfully."
-            fi
+            fi  
            ;;
 ########################################################
     "ListDB")
@@ -127,16 +127,16 @@ do
                     drop_table
                     ;;
                 4)
-                    echo "select from Table option selected."
+                    select_from_table
                     ;;
                 5)
                     insert_into_table
                     ;;
                 6)
-                    echo "Update from Table option selected."
+                    update_table
                     ;;
 		7)
-                    echo "delete from Table option selected."
+                    delete_from_table
                     ;;
                 8)
                     echo "Disconnecting from database '$dbName'."
