@@ -11,7 +11,7 @@ fi
 select option in CreateDB ListDB ConnectDB DropDB Exit
 do
     case $option in 
-      "CreateDB")
+    "CreateDB")
             read -p "Please Enter Database name: " dbName
             if [ -d "$dbName" ]; then
                 echo "Database '$dbName' already exists."
