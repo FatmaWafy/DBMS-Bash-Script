@@ -1,3 +1,0 @@
-id:int:PK:unique
-job:str
-salary:int
