@@ -93,7 +93,8 @@ do
     read -p "Enter the number of the database to connect to: " dbChoice
 
     i=1
-    for db in */; do
+    for db in */
+    do
         if [ "$dbChoice" -eq "$i" ]; then
             dbName="${db%%/}"
             break
