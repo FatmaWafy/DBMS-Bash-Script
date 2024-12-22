@@ -4,616 +4,461 @@ current_dir=$(pwd)
 function create_table() {
     cd "$current_dir/$dbName"
 
-    while true; do
-        read -p "Please Enter Table name: " tbName
-        if [[ $tbName =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]
-        then
-            break
-        else
-            echo "Invalid table name."
-            echo "Please enter a name with lowercase, uppercase letters, numbers, and underscores (_)."
-        fi
+    tbName=$(zenity --entry --title="Table Name" --text="Please Enter Table name:")
+    while [[ ! $tbName =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; do
+        zenity --error --text="Invalid table name. Please enter a name with lowercase, uppercase letters, numbers, and underscores (_)."
+        tbName=$(zenity --entry --title="Table Name" --text="Please Enter Table name:")
     done
 
-    if [ -e "$tbName" ]
-    then
-        echo "Table '$tbName' already exists."
+    if [ -e "$tbName" ]; then
+        zenity --info --text="Table '$tbName' already exists."
     else
         PK=0
-        while true; 
-        do
-            read -p "Please Enter number of columns: " colNumber
-            if [[ $colNumber -gt 0 && "$colNumber" =~ ^[0-9]+$ ]]
-            then
-                break
-            else
-                echo "Invalid number, please enter a valid number."
-            fi
+
+        colNumber=$(zenity --entry --title="Number of Columns" --text="Please Enter number of columns:" --entry-text="0")
+        while [[ ! "$colNumber" =~ ^[0-9]+$ || $colNumber -le 0 ]]; do
+            zenity --error --text="Invalid number, please enter a valid number."
+            colNumber=$(zenity --entry --title="Number of Columns" --text="Please Enter number of columns:" --entry-text="0")
         done
 
-        for ((i=0; i<$colNumber; i++))
-        do
+        for ((i=0; i<$colNumber; i++)); do
             line=""
-            while true; 
-	    do
-                read -p "Please Enter Column name: " colName
-                if [[ $colName =~ ^[a-z]+$ ]]
-                then
-                    line+=$colName
-                    break
-                else
-                    echo "Invalid column name, enter name with lowercase letters only."
-                fi
+
+            colName=$(zenity --entry --title="Column Name" --text="Please Enter Column name:")
+            while [[ ! "$colName" =~ ^[a-z]+$ ]]; do
+                zenity --error --text="Invalid column name, enter name with lowercase letters only."
+                colName=$(zenity --entry --title="Column Name" --text="Please Enter Column name:")
             done
 
-            while true; 
-	    do
-                read -p "Please Enter Column Datatype (int or str): " colType
-                if [[ "$colType" == "int" || "$colType" == "str" ]] 
-                then
-                    line+=:$colType
-                    break
-                else
-                    echo "Invalid datatype, Please enter (int or str)."
-                fi
+            colType=$(zenity --entry --title="Column Datatype" --text="Please Enter Column Datatype (int or str):")
+            while [[ "$colType" != "int" && "$colType" != "str" ]]; do
+                zenity --error --text="Invalid datatype, Please enter (int or str)."
+                colType=$(zenity --entry --title="Column Datatype" --text="Please Enter Column Datatype (int or str):")
             done
 
-            if [[ $PK -eq 0 ]]
-            then
-                while true; 
-                do
-                    read -p "Do you want to make this column PK (Yes or No): " checkPK
-                    if [[ "$checkPK" =~ ^(yes|y|no|n)$ ]]
-                    then
-                        if [[ "$checkPK" =~ ^(yes|y)$ ]]
-                        then
-                            if [[ "$colType" == "int" ]]
-                            then
-                                line+=:PK:unique
-                                PK=1
-                                break
-                            else
-                                echo "PK must be of 'int' datatype."
-                                read -p "Please Enter Column name: " colName
-                                line=$colName
-                                read -p "Please Enter Column Datatype (int or str): " colType
-                                line+=:$colType
-                            fi
-                        else
-                            break
-                        fi
-                    else
-                        echo "Invalid option, Please enter (yes or no)."
-                    fi
+            if [[ $PK -eq 0 ]]; then
+                checkPK=$(zenity --entry --title="Primary Key" --text="Do you want to make this column PK (yes or no):")
+                while [[ ! "$checkPK" =~ ^(yes|y|no|n)$ ]]; do
+                    zenity --error --text="Invalid option, Please enter (yes or no)."
+                    checkPK=$(zenity --entry --title="Primary Key" --text="Do you want to make this column PK (yes or no):")
                 done
+
+                if [[ "$checkPK" =~ ^(yes|y)$ ]]; then
+                    if [[ "$colType" == "int" ]]; then
+                        line="$colName:$colType:PK:unique"
+                        PK=1
+                    else
+                        zenity --error --text="PK must be of 'int' datatype."
+                        continue
+                    fi
+                else
+                    line="$colName:$colType"
+                fi
+            else
+                line="$colName:$colType"
             fi
 
-            echo $line >> .$tbName"_metadata"
-
+            echo "$line" >> .$tbName"_metadata"
         done
+
         touch "$tbName"
-        echo "Table '$tbName' created successfully."
+        zenity --info --text="Table '$tbName' created successfully."
+    fi
+}
+
+
+
+########################################################
+function list_table() {
+    cd "$current_dir/$dbName"
+    tables=$(ls -A | grep -v '^\.')
+
+    if [ -z "$tables" ]; then
+        zenity --info --text="There are no tables in $dbName."
+    else
+        table_list=""
+        i=1
+        for table in $tables; do
+            table_list+="$i. $table\n"
+            ((i++))
+        done
+        zenity --info  --title="Available Tables:" --text="$table_list"
     fi
 }
 
 ########################################################
-function list_table(){
-cd "$current_dir/$dbName"
-tables=$(ls -A |  grep -v '^\.')
-
-if [ -z "$tables" ]
-then
-	echo "not exist tables in $dbName"
-else
-	echo "list tables in $dbName are:"
-        echo "$tables" 
-fi
-}
-
-########################################################
 function drop_table(){
-cd "$current_dir/$dbName" 
+    cd "$current_dir/$dbName"
 
-echo "Available tables:"
     tables=()
     i=1
     for tb in *; do
         if [ -f "$tb" ] && [ ! -e "$tb"_metadata ]; then
             tables+=("$tb")
-            echo "$i) $tb"
-            i=$((i + 1))
         fi
     done
 
+    if [ ${#tables[@]} -eq 0 ]; then
+        zenity --info --text="No tables available in $dbName."
+        return
+    fi
 
-while true; 
-do
-	read -p "Enter Please number table: " tbNumber
-	if ! [[ "$tbNumber" =~ ^[0-9]+$ ]]
-	then
-        	echo "Please enter a valid number."
-        continue
-    	fi
-	if [ "$tbNumber" -ge 1 ] && [ "$tbNumber" -le ${#tables[@]} ]
-	then
-		tbName="${tables[$((tbNumber - 1))]}"
-		break
-	    else
-		echo "Invalid number, Please choose a valid table number."
-	 fi
- done
-i=1
-for table in $tables 
-do
-	if [ $tbNumber -eq $i ]
-	then
-		tbName=$table
-		break
-	fi
-	
-	i=$((i + 1))
-done
+    table_list=$(for i in "${!tables[@]}"; do echo "$((i + 1))) ${tables[$i]}"; done)
 
-read -p "Are you sure want to delete (yes or no): " check
-while [[ ! "$check" =~ ^(yes|no|y|n)$ ]]; 
-do
-    echo "Invalid option, Please enter (yes or no)."
-    read -p "Are you sure you want to delete (yes or no): " check
-done
+    selected_table=$(zenity --list --title="Select a table to delete" --column="Index" --column="Table Name" $table_list)
 
-if [[ "$check" =~ ^(yes|y)$ ]]
-then
-	rm "$tbName"
- 	rm .$tbName*
-	echo "$tbName deleted successfuly"
-elif [[ "$check" =~ ^(no|n)$ ]]
-then
-	echo "deletion cancelled"
-fi
+
+    selected_table=$(echo $selected_table | sed 's/)//')
+
+    if [ -z "$selected_table" ]; then
+        zenity --info --text="No table selected. Exiting..."
+        return
+    fi
+
+    tbName="${tables[$((selected_table - 1))]}"
+
+    zenity --question --text="Are you sure you want to delete $tbName?"
+
+    if [ $? -eq 0 ]; then
+        rm "$tbName"
+        rm .$tbName*
+        zenity --info --text="$tbName deleted successfully."
+    else
+        zenity --info --text="Deletion cancelled."
+    fi
 }
 
 ########################################################
-function insert_into_table(){
-cd "$current_dir/$dbName" 
+ function insert_into_table() {
+    cd "$current_dir/$dbName"
 
-echo "Tables that exist in '$dbName':"
     tables=()
-    i=1
     for tb in *; do
         if [[ -f "$tb" && ! "$tb" == .* ]]; then
             tables+=("$tb")
-            echo "$i) $tb"
-            i=$((i + 1))
         fi
     done
 
-if [[ ${#tables[@]} -eq 0 ]]; then
-        echo "No tables to insert data."
+    if [[ ${#tables[@]} -eq 0 ]]; then
+        zenity --info --title="No Tables" --text="No tables to insert data."
         return
     fi
-    
-while true; 
-do
-	read -p "Enter Please number table: " tbNumber
-	if ! [[ "$tbNumber" =~ ^[0-9]+$ ]]
-	then
-        	echo "Please enter a valid number."
-        continue
-    	fi
-	if [ "$tbNumber" -ge 1 ] && [ "$tbNumber" -le ${#tables[@]} ]; then
-		tbName="${tables[$((tbNumber - 1))]}"
-		break
-	    else
-		echo "Invalid number, Please choose a valid table number."
-	 fi
- done
 
-if [[ ! -f .$tbName"_metadata" ]]
-then
-	echo "Metadata file for table '$tbName' is missing."
-	break
-fi
+    tbName=$(zenity --list --title="Choose a Table" --column="Tables" "${tables[@]}")
+    if [[ -z "$tbName" ]]; then
+        zenity --error --title="Error" --text="No table selected."
+        return
+    fi
 
-echo "Inserting into $tbName"
-echo "Column Names and Data Types:"
-mapfile -t metadata < ".$tbName"_metadata
+    if [[ ! -f .$tbName"_metadata" ]]; then
+        zenity --error --title="Error" --text="Metadata file for table '$tbName' is missing."
+        return
+    fi
 
-columns=()
-types=()
-   for line in "${metadata[@]}"
-	do
-	colName=$(echo "$line" | cut -d: -f1)
-	colType=$(echo "$line" | cut -d: -f2)
-	columns+=("$colName")
-	types+=("$colType")
-	echo "$colName ($colType)"
-	done
+    mapfile -t metadata < ".$tbName"_metadata
+    columns=()
+    types=()
 
-row=()
-for index in "${!columns[@]}"
-do
-	colName=${columns[$index]}
-	colType=${types[$index]}
-	while true; 
-	do
-	    read -p "Enter data for $colName ($colType): " data
-	    case $colType in
-	    int)
-		if ! [[ "$data" =~ ^[0-9]+$ ]]
-		then 
-		    echo "Invalid data, please enter data contain only numbers."
-		    continue
-		fi
-		
-		line=$(grep "^$colName:" .$tbName"_metadata")
-    		if [[ "$line" == *"unique"* ]]
-		then
-		  if grep -q "^$data:" "$tbName"
-        	   then
-		      echo "The ID $data already exists. Please enter a unique value."
-		      continue
-		   fi
-	    	fi
-		;;
-	    str) 
-		if [[ "$data" == "" ]] || [[ ! "$data" =~ ^[a-zA-Z0-9@.""]+$ ]] 
-		then
-		    echo "string cannot be empty and must contain letters or number , try again."
-		    continue
-		fi
-		;;
-	    *)
-		echo "unknown data type: $colType"
-		continue
-		;;
-	    esac
+    for line in "${metadata[@]}"; do
+        colName=$(echo "$line" | cut -d: -f1)
+        colType=$(echo "$line" | cut -d: -f2)
+        columns+=("$colName")
+        types+=("$colType")
+    done
 
-	    row+=("$data")
-	    break
-	done
-done
+    row=()
+    for index in "${!columns[@]}"; do
+        colName=${columns[$index]}
+        colType=${types[$index]}
+        while true; do
+            data=$(zenity --entry --title="Enter Data" --text="Enter data for $colName ($colType):")
+            if [[ -z "$data" ]]; then
+                zenity --error --title="Error" --text="Data cannot be empty."
+                continue
+            fi
 
-echo "${row[*]}" | sed 's/ /:/g' >>"$tbName"
-echo "row inserted successfully in '$tbName'."
+            case $colType in
+            int)
+                if ! [[ "$data" =~ ^[0-9]+$ ]]; then
+                    zenity --error --title="Error" --text="Invalid data. Please enter a number."
+                    continue
+                fi
+
+                line=$(grep "^$colName:" .$tbName"_metadata")
+                if [[ "$line" == *"unique"* && $(grep -c "^$data:" "$tbName") -gt 0 ]]; then
+                    zenity --error --title="Error" --text="The ID $data already exists. Please enter a unique value."
+                    continue
+                fi
+                ;;
+            str)
+                if [[ ! "$data" =~ ^[a-zA-Z0-9@.""]+$ ]]; then
+                    zenity --error --title="Error" --text="Invalid data. Please enter letters, numbers, or valid symbols."
+                    continue
+                fi
+                ;;
+            *)
+                zenity --error --title="Error" --text="Unknown data type: $colType"
+                continue
+                ;;
+            esac
+
+            row+=("$data")
+            break
+        done
+    done
+
+    echo "${row[*]}" | sed 's/ /:/g' >>"$tbName"
+    zenity --info --title="Success" --text="Row inserted successfully into '$tbName'."
 }
+
 ############################################################
 function select_from_table() {
     cd "$current_dir/$dbName"
-    echo "Available tables:"
+
     tables=()
-    i=1
     for tb in *; do
-        if [ -f "$tb" ] && [ ! -e "$tb"_metadata ]
-        then
+        if [ -f "$tb" ] && [ ! -e "$tb"_metadata ]; then
             tables+=("$tb")
-            echo "$i) $tb"
-            i=$((i + 1))
         fi
     done
 
-   if [ ${#tables[@]} -eq 0 ]
-   then
-	echo "No tables available in this database."
-	return
+    if [ ${#tables[@]} -eq 0 ]; then
+        zenity --info --title="No Tables" --text="No tables available in this database."
+        return
     fi
 
-while true; 
-do
-	read -p "Enter the number of the table: " tbNumber
-        if [[ "$tbNumber" =~ ^[0-9]+$ ]] && [ "$tbNumber" -ge 1 ] && [ "$tbNumber" -le ${#tables[@]} ]
-        then
-            tbName="${tables[$((tbNumber - 1))]}"
+    tbName=$(zenity --list --title="Select a Table" --column="Tables" "${tables[@]}")
+    if [[ -z "$tbName" ]]; then
+        zenity --error --title="Error" --text="No table selected."
+        return
+    fi
+
+    while true; do
+        choice=$(zenity --list --title="Select Display Type" --column="Options" \
+            "Select all" "Projection (Select by column)" "Selection (Select with condition)" "Exit")
+        case $choice in
+        "Select all")
+            headers=$(awk -F: '{print $1}' ."$tbName"_metadata | tr '\n' ':' | sed 's/:$//')
+            data=$(cat "$tbName")
+            zenity --info --title="All Data in '$tbName'" --text="$headers\n\n$data"
+            ;;
+        "Projection (Select by column)")
+            columns=$(awk -F: '{print $1}' ."$tbName"_metadata)
+            colName=$(zenity --list --title="Select a Column" --column="Columns" ${columns})
+            if [[ -z "$colName" ]]; then
+                zenity --error --title="Error" --text="No column selected."
+                continue
+            fi
+            colNumber=$(awk -F: -v name="$colName" '$1 == name {print NR}' ."$tbName"_metadata)
+            data=$(awk -F: -v col="$colNumber" '{print $col}' "$tbName")
+            zenity --info --title="Data for Column '$colName'" --text="$data"
+            ;;
+        "Selection (Select with condition)")
+            columns=($(awk -F: '{print $1}' ."$tbName"_metadata))
+            colName=$(zenity --list --title="Select a Column for Condition" --column="Columns" ${columns[@]})
+            if [[ -z "$colName" ]]; then
+                zenity --error --title="Error" --text="No column selected."
+                continue
+            fi
+            colNumber=$(awk -F: -v name="$colName" '$1 == name {print NR}' ."$tbName"_metadata)
+            value=$(zenity --entry --title="Enter Value" --text="Enter value to search in column '$colName':")
+            if [[ -z "$value" ]]; then
+                zenity --error --title="Error" --text="No value entered."
+                continue
+            fi
+            rows=$(awk -F: -v col="$colNumber" -v value="$value" '$col == value {print $0}' "$tbName")
+            if [[ -z "$rows" ]]; then
+                zenity --info --title="No Data Found" --text="No data found for '$colName' = '$value'."
+            else
+                zenity --info --title="Data Found" --text="Data for '$colName' = '$value':\n$rows"
+            fi
+            ;;
+        "Exit")
             break
-        else
-            echo "Invalid number, Please choose a valid table number."
-        fi
-done
-
-    echo "Table '$tbName' selected."
-    
-while true; 
-do
-    echo "Please choose display type:"
-    select choice in "Select all" "Projection (Select by column)" "Selection (Select with condition)" "Exit"; 
-    do
-        case $REPLY in
-            1) 
-                echo "All Data in '$tbName':"
-                cat ."$tbName"_metadata | awk -F: '{print $1}' | tr '\n' ':' | sed 's/:$/\n/'
-                cat "$tbName"
-                break
-                ;;
-            2) 
-              	columns=$(cat ."$tbName"_metadata | awk -F: '{print $1}')
-                echo "Please choose a column to display:"
-		select colName in $columns "Exit"; 
-		do
-    		if [ "$colName" == "Exit" ]; 
-    		then
-       			 break
-    		fi
-    		
-    		if [ -n "$colName" ]
-    		then
-			echo "Data for column '$colName':"
-			colNumber=$(awk -F: -v name="$colName" '$1 == name {print NR}' ."$tbName"_metadata)
-			awk -F: -v col="$colNumber" '{print $col}' "$tbName"
-			break
-    		else
-        	         echo "Invalid column name. Please try again."
-		fi
-		done
-                break
-                ;;
-            3) 
-            	echo "All columns in '$tbName':"
-                columns=($(awk -F: '{print $1}' ."$tbName"_metadata))
-                echo "Please choose a column to display:"
-		i=1
-		for column in "${columns[@]}"
-		do
-		    echo "$i) $column"
-		    i=$((i + 1))
-		done
-		
-		read -p "Enter the column number to search in: " colNumber
-		if [[ "$colNumber" =~ ^[0-9]+$ ]] && [ "$colNumber" -ge 1 ] && [ "$colNumber" -le ${#columns[@]} ]; 
-		then
-    			colName="${columns[$((colNumber - 1))]}"
-    			echo "You selected column: $colName"
-			read -p "Enter value to search for in '$colName': " value
-    			row=$(awk -F: -v col="$colNumber" -v value="$value" '$col == value {print $0}' "$tbName")
-
-                	if [ -n "$row" ]; then
-				echo "Data for '$colName' = '$value':"
-				echo "$row"
-    			else
-        			echo "No data found for '$colName' = '$value'."
-    			fi
-		else
-    			echo "Invalid column number."
-		fi
-                break
-                ;;
-            4) 
-                break 2
-                ;;
-            *) # Invalid choice
-                echo "Invalid choice. Please try again."
-                ;;
+            ;;
+        *)
+            zenity --error --title="Error" --text="Invalid choice. Please try again."
+            ;;
         esac
     done
-done
 }
 
 ####################################################################
 function delete_from_table() {
     cd "$current_dir/$dbName"
-    echo "Available tables:"
+
+
     tables=()
-    i=1
     for tb in *; do
-        if [ -f "$tb" ] && [ ! -e "$tb"_metadata ]
-        then
+        if [ -f "$tb" ] && [ ! -e "$tb"_metadata ]; then
             tables+=("$tb")
-            echo "$i) $tb"
-            i=$((i + 1))
         fi
     done
 
-   if [ ${#tables[@]} -eq 0 ]
-   then
-	echo "No tables available in this database."
-	return
+    if [ ${#tables[@]} -eq 0 ]; then
+        zenity --info --title="No Tables" --text="No tables available in this database."
+        return
     fi
-    
-while true; 
-do
-	read -p "Enter the number of the table: " tbNumber
-        if [[ "$tbNumber" =~ ^[0-9]+$ ]] && [ "$tbNumber" -ge 1 ] && [ "$tbNumber" -le ${#tables[@]} ]
-        then
-            tbName="${tables[$((tbNumber - 1))]}"
+
+    tbName=$(zenity --list --title="Select a Table" --column="Tables" "${tables[@]}")
+    if [[ -z "$tbName" ]]; then
+        zenity --error --title="Error" --text="No table selected."
+        return
+    fi
+
+    while true; do
+
+        choice=$(zenity --list --title="Select Delete Type" --column="Options" \
+            "Delete all" "Deletion (delete by column)" "Exit")
+        case $choice in
+        "Delete all")
+            data=$(cat "$tbName")
+            confirm=$(zenity --question --title="Confirm Deletion" \
+                --text="Are you sure you want to delete all data in '$tbName'?\n\nCurrent Data:\n$data" \
+                --ok-label="Yes" --cancel-label="No")
+            if [[ $? -eq 0 ]]; then
+                truncate -s 0 "$tbName"
+                zenity --info --title="Success" --text="All data deleted from '$tbName' successfully."
+            else
+                zenity --info --title="Cancelled" --text="Deletion cancelled."
+            fi
+            ;;
+        "Deletion (delete by column)")
+            columns=$(awk -F: '{print $1}' ."$tbName"_metadata)
+            colName=$(zenity --list --title="Select a Column" --column="Columns" ${columns[@]})
+            if [[ -z "$colName" ]]; then
+                zenity --error --title="Error" --text="No column selected."
+                continue
+            fi
+
+            colNumber=$(awk -F: -v name="$colName" '$1 == name {print NR}' ."$tbName"_metadata)
+            value=$(zenity --entry --title="Enter Value" --text="Enter the value to delete in column '$colName':")
+            if [[ -z "$value" ]]; then
+                zenity --error --title="Error" --text="No value entered."
+                continue
+            fi
+
+            rows=$(awk -F: -v col="$colNumber" -v value="$value" '$col == value {print $0}' "$tbName")
+            if [[ -z "$rows" ]]; then
+                zenity --info --title="No Data Found" --text="No data found for '$colName' = '$value'."
+            else
+                confirm=$(zenity --question --title="Confirm Deletion" \
+                    --text="Data to be deleted:\n$rows\n\nAre you sure?" --ok-label="Yes" --cancel-label="No")
+                if [[ $? -eq 0 ]]; then
+                    sed -i "/$value/d" "$tbName"
+                    zenity --info --title="Success" --text="Data deleted successfully from '$tbName'."
+                else
+                    zenity --info --title="Cancelled" --text="Deletion cancelled."
+                fi
+            fi
+            ;;
+        "Exit")
             break
-        else
-            echo "Invalid number, Please choose a valid table number."
-        fi
-done
-
-    echo "Table '$tbName' selected."
-    
-while true; 
-do
-    echo "Please choose delete type:"
-    select choice in "Delete all" "Deletion(delete by column)" "Exit"; 
-    do
-        case $REPLY in
-            1) 
-                echo "All Data in '$tbName':"
-        	cat "$tbName"
-		read -p "Are you sure you want to delete this data in '$tbName'? (yes/no): " check
-		while [[ ! "$check" =~ ^(yes|no|y|n)$ ]]; 
-		do
-		    echo "Invalid option, Please enter (yes or no)."
-		    read -p "Are you sure you want to delete (yes or no): " check
-		done
-
-		if [[ "$check" =~ ^(yes|y)$ ]]
-		then 		
-		    truncate -s 0 "$tbName"
-		    echo "all data deleted in '$tbName' successfully"
-		elif [[ "$check" =~ ^(no|n)$ ]]
-		then
-			echo "deletion cancelled"
-		fi
-       		break
-       		;;
-           2)
-           	echo "All columns in '$tbName':"
-                columns=($(awk -F: '{print $1}' ."$tbName"_metadata))
-                echo "Please choose a column to display:"
-		i=1
-		for column in "${columns[@]}"
-		do
-		    echo "$i) $column"
-		    i=$((i + 1))
-		done
-		
-		read -p "Enter the column number to search in: " colNumber
-		if [[ "$colNumber" =~ ^[0-9]+$ ]] && [ "$colNumber" -ge 1 ] && [ "$colNumber" -le ${#columns[@]} ]; 
-		then
-    			colName="${columns[$((colNumber - 1))]}"
-    			echo "You selected column: $colName"
-			read -p "Enter value to search for in '$colName': " value
-    			row=$(awk -F: -v col="$colNumber" -v value="$value" '$col == value {print $0}' "$tbName")
-                	if [ -n "$row" ]; then
-				echo "Data for '$colName' = '$value':"
-				echo "$row"
-				read -p "Are you sure you want to delete this data in '$tbName'? (yes/no): " check
-			while [[ ! "$check" =~ ^(yes|no|y|n)$ ]]; 
-			do
-			    echo "Invalid option, Please enter (yes or no)."
-			    read -p "Are you sure you want to delete (yes or no): " check
-			done
-
-			if [[ "$check" =~ ^(yes|y)$ ]]
-			then 		
-			    sed -i "/$value/d" "$tbName"
-			    echo "Data deleted successfully from '$tbName'"
-			elif [[ "$check" =~ ^(no|n)$ ]]
-			then
-				echo "deletion cancelled"
-			else 
-			echo "invaild option"
-			fi
-    			else
-        			echo "No data found for '$colName' = '$value'."
-    			fi
-		else
-    			echo "Invalid column number."
-		fi
-                break
-                ;;
-            3) 
-                break 2
-                ;;
-            *) 
-                echo "Invalid choice. Please try again."
-                ;;
+            ;;
+        *)
+            zenity --error --title="Error" --text="Invalid choice. Please try again."
+            ;;
         esac
     done
-done
 }
+
 #######################################################################
-function update_table() {
+ function update_table() {
   cd "$current_dir/$dbName"
-    echo "Available tables:"
-    tables=()
-    i=1
-    for tb in *; do
-        if [ -f "$tb" ] && [ ! -e "$tb"_metadata ]
-        then
-            tables+=("$tb")
-            echo "$i) $tb"
-            i=$((i + 1))
-        fi
-    done
 
-   if [ ${#tables[@]} -eq 0 ]
-   then
-	echo "No tables available in this database."
-	return
+  tables=()
+  i=1
+  for tb in *; do
+    if [ -f "$tb" ] && [ ! -e "$tb"_metadata ]; then
+      tables+=("$tb")
     fi
-    
-while true; 
-do
-	read -p "Enter the number of the table: " tbNumber
-        if [[ "$tbNumber" =~ ^[0-9]+$ ]] && [ "$tbNumber" -ge 1 ] && [ "$tbNumber" -le ${#tables[@]} ]
-        then
-            tbName="${tables[$((tbNumber - 1))]}"
-            break
-        else
-            echo "Invalid number, Please choose a valid table number."
-        fi
-done
+  done
 
-    echo "Table '$tbName' selected."
-    
-    echo "Current data in '$tbName':"
-    cat "$tbName"
-    
-    read -p "Enter the ID of the row you want to update: " id
-    row=$(grep "^$id:" "$tbName")
-    if [ -z "$row" ]; then
-        echo "No row found with ID '$id'."
-        return
-    else
-        echo "Row found: $row"
-    fi
-   mapfile -t metadata < ".$tbName"_metadata
+  if [ ${#tables[@]} -eq 0 ]; then
+    zenity --info --text="No tables available in this database."
+    return
+  fi
 
-columns=()
-types=()
+  table_list=$(for i in "${!tables[@]}"; do echo "$((i + 1)) ${tables[$i]}"; done)
+  selected_table=$(zenity --list --title="Select Table" --column="Index" --column="Table Name" $table_list)
 
-for i in "${!metadata[@]}"; do
+  if [ -z "$selected_table" ]; then
+    zenity --info --text="No table selected."
+    return
+  fi
+
+  tbName="${tables[$((selected_table - 1))]}"
+
+  zenity --info --text="Table '$tbName' selected."
+  
+  current_data=$(cat "$tbName")
+  zenity --info --text="Current data in '$tbName':\n$current_data"
+
+  id=$(zenity --entry --title="Enter ID" --text="Enter the ID of the row you want to update:")
+  
+  row=$(grep "^$id:" "$tbName")
+  if [ -z "$row" ]; then
+    zenity --info --text="No row found with ID '$id'."
+    return
+  else
+    zenity --info --text="Row found: $row"
+  fi
+
+  mapfile -t metadata < ".$tbName"_metadata
+  columns=()
+  types=()
+
+  for i in "${!metadata[@]}"; do
     colName=$(echo "${metadata[$i]}" | cut -d: -f1)
     colType=$(echo "${metadata[$i]}" | cut -d: -f2)
     columns+=("$colName")
     types+=("$colType")
-    echo "$((i + 1))) $colName ($colType)"
   done
 
+  column_list=$(for i in "${!columns[@]}"; do echo "$((i + 1))) ${columns[$i]}"; done)
+  selected_column=$(zenity --list --title="Select Column to Update" --column="Index" --column="Column Name" $column_list)
 
-while true; do
-    read -p "Enter the column number to update: " colNumber
-    if [[ "$colNumber" =~ ^[0-9]+$ ]] && [ "$colNumber" -ge 1 ] && [ "$colNumber" -le ${#columns[@]} ]
-    then
-        colName="${columns[$((colNumber - 1))]}"
-        break
-    else
-       echo "Invalid column number, Please try again."
-    fi
-done
- echo "You selected column: $colName"
- 
-while true
-do
-read -p "Enter the new value for '$colName': " newValue
-colType="${types[$((colNumber - 1))]}"
-	case $colType in
-	    int)
-		if ! [[ "$newValue" =~ ^[0-9]+$ ]]; then
-		    echo "Invalid value, please enter a numeric value."
-		    continue
-		fi
+  if [ -z "$selected_column" ]; then
+    zenity --info --text="No column selected."
+    return
+  fi
 
-		line=$(grep "^$colName:" .$tbName"_metadata")
-    		if [[ "$line" == *"unique"* ]]
-		then
-		  if grep -q "^$newValue:" "$tbName"
-        	   then
-		      echo "The ID $newValue already exists. Please enter a unique value."
-		      continue
-		   fi
-	    	fi
-		;;
-	    str)
-		if [[ -z "$newValue" ]] || [[ ! "$newValue" =~ ^[a-zA-Z0-9@.""]+$ ]]; then
-		    echo "Invalid string, it must contain letters, numbers, or symbols like '@' and '.'."
-		    continue
-		fi
-		;;
-	    *)
-		echo "Unknown data type: $colType"
-		continue
-		;;
-	esac
-break
-done
+  colName="${columns[$((selected_column - 1))]}"
 
-awk -F: -v OFS=: -v id="$id" -v colNumber="$colNumber" -v newValue="$newValue" '
-$1 == id { $colNumber = newValue } 1
-' "$tbName" > tmp && mv tmp "$tbName"
+  newValue=$(zenity --entry --title="Enter New Value" --text="Enter the new value for '$colName':")
 
-echo "Row with ID '$id' updated successfully."
+  colType="${types[$((selected_column - 1))]}"
+  
+  case $colType in
+    int)
+      if ! [[ "$newValue" =~ ^[0-9]+$ ]]; then
+        zenity --error --text="Invalid value, please enter a numeric value."
+        return
+      fi
+      line=$(grep "^$colName:" .$tbName"_metadata")
+      if [[ "$line" == *"unique"* ]]; then
+        if grep -q "^$newValue:" "$tbName"; then
+          zenity --error --text="The ID $newValue already exists. Please enter a unique value."
+          return
+        fi
+      fi
+      ;;
+    str)
+      if [[ -z "$newValue" ]] || [[ ! "$newValue" =~ ^[a-zA-Z0-9@.""]+$ ]]; then
+        zenity --error --text="Invalid string, it must contain letters, numbers, or symbols like '@' and '.'."
+        return
+      fi
+      ;;
+    *)
+      zenity --error --text="Unknown data type: $colType"
+      return
+      ;;
+  esac
 
+  awk -F: -v OFS=: -v id="$id" -v colNumber="$selected_column" -v newValue="$newValue" '
+  $1 == id { $colNumber = newValue } 1
+  ' "$tbName" > tmp && mv tmp "$tbName"
+
+  zenity --info --text="Row with ID '$id' updated successfully."
 }
+

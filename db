@@ -1,0 +1,193 @@
+#! /usr/bin/bash
+shopt -s extglob 
+clear
+source "$(dirname "$0")/table"
+
+########################################################
+if [ -d ~/.local/bin/iti ]; then
+    cd ~/.local/bin/iti
+else
+    mkdir -p ~/.local/bin/iti
+    cd ~/.local/bin/iti
+fi
+########################################################
+option=$(zenity --list --title="Database Options" --column="Choose an Option" "CreateDB" "ListDB" "RenameDB" "ConnectDB" "DropDB" "Exit")
+
+    case $option in 
+    "CreateDB")
+	   while true; 
+	   do
+		dbName=$(zenity --entry --title="Database Name" --text="Please Enter Database Name:")
+
+		if [[ $dbName =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]
+		then
+		    break
+		else
+		    zenity --error --title="Invalid Input" --text="Invalid Database name."
+
+		    zenity --info --title="Input Format" --text="Please enter a name with lowercase, uppercase letters, numbers, and underscores (_)."
+
+		fi
+	    done
+	    
+            if [ -d "$dbName" ]; then
+               zenity --error --title="Database Exists" --text="Database '$dbName' already exists."
+
+            else
+                mkdir "$dbName"
+                zenity --info --title="Database Created" --text="Database '$dbName' created successfully."
+
+            fi  
+           ;;
+########################################################
+    "ListDB")
+    current_dir=$(pwd)
+    db_list=""
+    i=1
+
+    for db in "$current_dir"/*/; do
+        if [ -d "$db" ]; then
+            db_list+="$i) $(basename "$db")\n"
+            i=$((i + 1))
+        fi
+    done
+
+    if [ -z "$db_list" ]; then
+        zenity --info --title="No Databases Found" --text="There are no databases available."
+    else
+        zenity --info --title="Available Databases" --text="$db_list"
+    fi
+    ;;
+
+
+########################################################
+	"RenameDB")
+    oldName=$(zenity --entry --title="Rename Database" --text="Please Enter the Old Database Name:")
+    if [ -d "$oldName" ]; then
+        while true; do
+            newName=$(zenity --entry --title="Rename Database" --text="Please Enter the New Database Name:")
+            if [[ $newName =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+                break
+            else
+                zenity --error --title="Invalid Input" --text="Invalid Database name. Please enter a name with lowercase, uppercase letters, numbers, and underscores (_)."
+            fi
+        done
+
+        if [ -d "$newName" ]; then
+            zenity --error --title="Name Conflict" --text="Database '$newName' already exists."
+        else
+            mv "$oldName" "$newName"
+            zenity --info --title="Rename Successful" --text="Database renamed successfully to '$newName'."
+        fi
+    else
+        zenity --error --title="Database Not Found" --text="Database '$oldName' does not exist."
+    fi
+    ;;
+
+########################################################
+    "ConnectDB")
+    current_dir=$(pwd)
+
+    dbList=()
+    for db in $current_dir/*/
+    do
+        if [ -d "$db" ]; then
+            dbList+=("$(basename "$db")")
+        fi
+    done
+
+    if [ ${#dbList[@]} -eq 0 ]; then
+        zenity --error --title="No Databases" --text="No databases available to connect."
+        continue
+    fi
+
+    dbName=$(zenity --list --title="Connect to Database" --column="Databases" "${dbList[@]}")
+    
+    if [ -n "$dbName" ]; then
+        zenity --info --title="Connected" --text="Connected to '$dbName' successfully."
+
+        while true; do
+            choice=$(zenity --list --title="Database Operations" --column="Options" \
+                "Create Table" "List Tables" "Drop Table" "Select from Table" "Insert into Table" \
+                "Update from Table" "Delete from Table" "Disconnect")
+
+            case $choice in
+                "Create Table")
+                    create_table
+                    ;;
+                "List Tables")
+                    list_table
+                    ;;
+                "Drop Table")
+                    drop_table
+                    ;;
+                "Select from Table")
+                    select_from_table
+                    ;;
+                "Insert into Table")
+                    insert_into_table
+                    ;;
+                "Update from Table")
+                    update_table
+                    ;;
+                "Delete from Table")
+                    delete_from_table
+                    ;;
+                "Disconnect")
+                    zenity --info --title="Disconnect" --text="Disconnected from database '$dbName'."
+                    unset dbName
+                    break
+                    ;;
+                *)
+                    zenity --error --title="Invalid Choice" --text="Please select a valid option."
+                    ;;
+            esac
+        done
+    else
+        zenity --error --title="Invalid Selection" --text="No database selected."
+    fi
+    ;;
+
+########################################################
+"DropDB")
+    current_dir=$(pwd)
+
+    dbList=()
+    for db in $current_dir/*/
+    do
+        if [ -d "$db" ]; then
+            dbList+=("$(basename "$db")")
+        fi
+    done
+
+    if [ ${#dbList[@]} -eq 0 ]; then
+        zenity --error --title="No Databases" --text="No databases available for deletion."
+        continue
+    fi
+
+    dbName=$(zenity --list --title="Delete Database" --column="Databases" "${dbList[@]}")
+
+    if [ -n "$dbName" ]; then
+        confirmation=$(zenity --question --title="Confirm Deletion" --text="Are you sure you want to delete '$dbName'?" \
+            --ok-label="Yes" --cancel-label="No")
+        if [ $? -eq 0 ]; then
+            rm -r "$dbName"
+            zenity --info --title="Success" --text="Database '$dbName' deleted successfully."
+        else
+            zenity --info --title="Cancelled" --text="Deletion of '$dbName' was cancelled."
+        fi
+    else
+        zenity --error --title="No Selection" --text="No database selected for deletion."
+    fi
+    ;;
+
+########################################################
+ "Exit")
+    zenity --info --title="Exit" --text="Goodbye!"
+    ;;
+*)
+    zenity --error --title="Invalid Option" --text="Invalid option. Please select a valid choice."
+    ;;
+esac
+
+########################################################
