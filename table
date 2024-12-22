@@ -241,7 +241,7 @@ do
 	    int)
 		if ! [[ "$data" =~ ^[0-9]+$ ]]
 		then 
-		    echo "Invalid data, please enter data contain (0-9)."
+		    echo "Invalid data, please enter data contain only numbers."
 		    continue
 		fi
 		
@@ -585,6 +585,16 @@ colType="${types[$((colNumber - 1))]}"
 		    echo "Invalid value, please enter a numeric value."
 		    continue
 		fi
+
+		line=$(grep "^$colName:" .$tbName"_metadata")
+    		if [[ "$line" == *"unique"* ]]
+		then
+		  if grep -q "^$newValue:" "$tbName"
+        	   then
+		      echo "The ID $newValue already exists. Please enter a unique value."
+		      continue
+		   fi
+	    	fi
 		;;
 	    str)
 		if [[ -z "$newValue" ]] || [[ ! "$newValue" =~ ^[a-zA-Z0-9@.""]+$ ]]; then
@@ -600,9 +610,9 @@ colType="${types[$((colNumber - 1))]}"
 break
 done
 
-sed -i "s/^$id:[^:]*$/$(echo "$id" | sed 's/\//\\\//g'):$newValue/" "$tbName"
-
-
+awk -F: -v OFS=: -v id="$id" -v colNumber="$colNumber" -v newValue="$newValue" '
+$1 == id { $colNumber = newValue } 1
+' "$tbName" > tmp && mv tmp "$tbName"
 
 echo "Row with ID '$id' updated successfully."
 
